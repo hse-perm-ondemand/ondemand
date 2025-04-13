@@ -1,0 +1,42 @@
+name: "Sample action"
+
+on:
+  push:
+    branches:
+      - '*-ondemand'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get source code
+        run: |
+          export $(xargs < ondemand.config)
+          git clone https://github.com/hse-perm-ondemand/algoscalc-back.git
+          cd algoscalc-back
+          git checkout $BACK_BRANCH
+      - name: Set image name
+        run: |
+          ENV_NAME="${GITHUB_REF_NAME%-ondemand}"
+          echo "IMAGE_NAME=ghcr.io/${{ github.repository }}:back-${ENV_NAME}" >> $GITHUB_ENV
+      - name: Build and push Docker image
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
+          context: ./algoscalc-back
+          push: true
+          tags: ${{ env.IMAGE_NAME }}
